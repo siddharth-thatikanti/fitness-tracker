@@ -2,7 +2,8 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_HUB_USER = 'siddhartha9'
+        DOCKERHUB_CREDENTIALS = credentials('dockerhub-token')
+        DOCKER_USER = 'siddhartha9'
         IMAGE_NAME = 'fitness-tracker-app'
     }
 
@@ -17,7 +18,7 @@ pipeline {
             steps {
                 script {
                     echo "🚀 Building Docker image..."
-                    sh "docker build -t ${DOCKER_HUB_USER}/${IMAGE_NAME}:latest ."
+                    sh "docker build -t ${DOCKER_USER}/${IMAGE_NAME}:latest ."
                 }
             }
         }
@@ -27,9 +28,9 @@ pipeline {
                 script {
                     echo "🧪 Running test container on a random port..."
                     sh '''
-                        docker run --rm -d -p 6146:5051 --name test_container ${DOCKER_HUB_USER}/${IMAGE_NAME}:latest
-                        sleep 5
-                        docker stop test_container
+                    docker run --rm -d -p 6146:5051 --name test_container ${DOCKER_USER}/${IMAGE_NAME}:latest
+                    sleep 5
+                    docker stop test_container
                     '''
                 }
             }
@@ -37,12 +38,12 @@ pipeline {
 
         stage('Push to Docker Hub') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dokcerhub-token', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-token', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     script {
                         echo "📦 Logging into Docker Hub..."
                         sh '''
-                            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                            docker push ${DOCKER_HUB_USER}/${IMAGE_NAME}:latest
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                        docker push ${DOCKER_USER}/${IMAGE_NAME}:latest
                         '''
                     }
                 }
@@ -53,19 +54,27 @@ pipeline {
             steps {
                 script {
                     echo "🚢 Deploying latest container..."
+
+                    // Stop old container if running
                     sh '''
-                        docker stop ${IMAGE_NAME} || true
-                        docker rm ${IMAGE_NAME} || true
-
-                        PORT=5052
-                        if lsof -Pi :$PORT -sTCP:LISTEN -t >/dev/null ; then
-                            echo "⚠️ Port $PORT already in use. Switching to port 5055..."
-                            PORT=5055
-                        fi
-
-                        docker run -d -p $PORT:5051 --name ${IMAGE_NAME} ${DOCKER_HUB_USER}/${IMAGE_NAME}:latest
-                        echo "✅ App deployed successfully on port $PORT"
+                    docker stop ${IMAGE_NAME} || true
+                    docker rm ${IMAGE_NAME} || true
                     '''
+
+                    // Find a free port dynamically (start from 5052)
+                    def BASE_PORT = 5052
+                    def FREE_PORT = sh(
+                        script: "for p in $(seq ${BASE_PORT} 5100); do ! lsof -Pi :$p -sTCP:LISTEN -t >/dev/null && echo $p && break; done",
+                        returnStdout: true
+                    ).trim()
+
+                    if (FREE_PORT == "") {
+                        error("❌ No free port found between 5052 and 5100!")
+                    }
+
+                    echo "✅ Using available port: ${FREE_PORT}"
+
+                    sh "docker run -d -p ${FREE_PORT}:5051 --name ${IMAGE_NAME} ${DOCKER_USER}/${IMAGE_NAME}:latest"
                 }
             }
         }
@@ -73,7 +82,7 @@ pipeline {
 
     post {
         success {
-            echo "🎉 Pipeline executed successfully! Fitness Tracker app is up and running."
+            echo "✅ Deployment completed successfully!"
         }
         failure {
             echo "❌ Deployment failed. Please check the Jenkins logs for errors."
