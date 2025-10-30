@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_USER = 'siddhartha9'        // 🔹 Replace with your Docker Hub username
+        DOCKERHUB_USER = 'siddhartha9'
         IMAGE_NAME = 'fitness-tracker-app'
     }
 
@@ -28,7 +28,7 @@ pipeline {
                 script {
                     echo "🧪 Running test container on a random port..."
                     sh '''
-                    docker run --rm -d -p 6060:5051 --name test_container ${DOCKERHUB_USER}/${IMAGE_NAME}:latest
+                    docker run --rm -d -p 6146:5051 --name test_container ${DOCKERHUB_USER}/${IMAGE_NAME}:latest
                     sleep 5
                     docker stop test_container
                     '''
@@ -43,7 +43,7 @@ pipeline {
                         echo "📤 Pushing image to Docker Hub..."
                         sh '''
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                        docker push ${DOCKERHUB_USER}/${IMAGE_NAME}:latest
+                        docker push ${DOCKER_USER}/${IMAGE_NAME}:latest
                         '''
                     }
                 }
@@ -55,17 +55,21 @@ pipeline {
                 script {
                     echo "🚢 Deploying latest container..."
 
-                    // Stop and remove old container if exists
+                    // Stop and remove any old container if running
                     sh '''
                     docker stop fitness-tracker-app || true
                     docker rm fitness-tracker-app || true
+                    '''
 
-                    # Find first free port
+                    // Find a free port and deploy
+                    sh '''
                     for PORT in $(seq 5052 5100); do
                         if ! lsof -Pi :$PORT -sTCP:LISTEN -t >/dev/null; then
                             echo "✅ Using available port: $PORT"
                             docker run -d -p $PORT:5051 --name fitness-tracker-app ${DOCKERHUB_USER}/${IMAGE_NAME}:latest
-                            echo "🌐 Application deployed successfully at: http://localhost:$PORT"
+                            echo "🌐 Application deployed successfully at: http://$(hostname -I | awk '{print $1}'):$PORT"
+                            echo "📜 Displaying latest 50 container logs:"
+                            docker logs --tail 50 fitness-tracker-app
                             exit 0
                         fi
                     done
@@ -80,7 +84,7 @@ pipeline {
 
     post {
         success {
-            echo "✅ Pipeline executed successfully! App deployed and pushed to Docker Hub."
+            echo "✅ Pipeline completed successfully!"
         }
         failure {
             echo "❌ Pipeline failed. Please check Jenkins logs."
