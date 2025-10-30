@@ -24,7 +24,7 @@ pipeline {
         stage('Test') {
             steps {
                 echo 'Running basic container test...'
-                sh 'docker run --rm -d -p 5051:5051 $DOCKERHUB_USER/$IMAGE_NAME:latest'
+                sh 'docker run --rm -d -p 5052:5051 $DOCKERHUB_USER/$IMAGE_NAME:latest'
                 sh 'sleep 5'
                 sh 'curl -f http://localhost:5051 || echo "Container test failed"'
             }
@@ -58,3 +58,4 @@ pipeline {
         }
     }
 }
+
