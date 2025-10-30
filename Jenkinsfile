@@ -5,11 +5,14 @@ pipeline {
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-token')
         DOCKER_USER = 'siddhartha9'
         IMAGE_NAME = 'fitness-tracker-app'
+        BASE_PORT = 5052
     }
 
     stages {
+
         stage('Checkout') {
             steps {
+                echo "📦 Checking out code from GitHub..."
                 git branch: 'main', url: 'https://github.com/siddharth-thatikanti/fitness-tracker.git'
             }
         }
@@ -40,7 +43,7 @@ pipeline {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-token', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     script {
-                        echo "📦 Logging into Docker Hub..."
+                        echo "📤 Pushing image to Docker Hub..."
                         sh '''
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
                         docker push ${DOCKER_USER}/${IMAGE_NAME}:latest
@@ -55,14 +58,13 @@ pipeline {
                 script {
                     echo "🚢 Deploying latest container..."
 
-                    // Stop old container if running
+                    // Stop and remove any existing container
                     sh '''
                     docker stop ${IMAGE_NAME} || true
                     docker rm ${IMAGE_NAME} || true
                     '''
 
-                    // Find a free port dynamically (escaped $ to avoid Groovy parsing)
-                    def BASE_PORT = 5052
+                    // Find a free port dynamically (escape $ for bash)
                     def FREE_PORT = sh(
                         script: '''
                         for p in $(seq 5052 5100); do
@@ -81,7 +83,10 @@ pipeline {
 
                     echo "✅ Using available port: ${FREE_PORT}"
 
+                    // Run the new container
                     sh "docker run -d -p ${FREE_PORT}:5051 --name ${IMAGE_NAME} ${DOCKER_USER}/${IMAGE_NAME}:latest"
+
+                    echo "🌐 Application deployed successfully at: http://<YOUR-SERVER-IP>:${FREE_PORT}"
                 }
             }
         }
@@ -89,10 +94,10 @@ pipeline {
 
     post {
         success {
-            echo "✅ Deployment completed successfully!"
+            echo "✅ Pipeline completed successfully!"
         }
         failure {
-            echo "❌ Deployment failed. Please check the Jenkins logs for errors."
+            echo "❌ Pipeline failed. Please check Jenkins logs."
         }
     }
 }
