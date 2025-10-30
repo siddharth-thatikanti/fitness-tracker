@@ -2,10 +2,8 @@ pipeline {
     agent any
 
     environment {
-        // Change this to your actual Docker Hub username
-        DOCKERHUB_USER = "siddhartha9"
-        IMAGE_NAME = "fitness-tracker-app"
-        IMAGE_TAG = "latest"
+        DOCKER_HUB_USER = 'siddhartha9'
+        IMAGE_NAME = 'fitness-tracker-app'
     }
 
     stages {
@@ -19,7 +17,7 @@ pipeline {
             steps {
                 script {
                     echo "🚀 Building Docker image..."
-                    sh "docker build -t ${DOCKERHUB_USER}/${IMAGE_NAME}:${IMAGE_TAG} ."
+                    sh "docker build -t ${DOCKER_HUB_USER}/${IMAGE_NAME}:latest ."
                 }
             }
         }
@@ -28,11 +26,11 @@ pipeline {
             steps {
                 script {
                     echo "🧪 Running test container on a random port..."
-                    // Use a random port to avoid 'port already allocated' errors
-                    def testPort = 6000 + new Random().nextInt(999)
-                    sh "docker run --rm -d -p ${testPort}:5051 --name test_container ${DOCKERHUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}"
-                    sh "sleep 5"
-                    sh "docker stop test_container || true"
+                    sh '''
+                        docker run --rm -d -p 6146:5051 --name test_container ${DOCKER_HUB_USER}/${IMAGE_NAME}:latest
+                        sleep 5
+                        docker stop test_container
+                    '''
                 }
             }
         }
@@ -42,8 +40,10 @@ pipeline {
                 withCredentials([usernamePassword(credentialsId: 'dokcerhub-token', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     script {
                         echo "📦 Logging into Docker Hub..."
-                        sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin"
-                        sh "docker push ${DOCKERHUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}"
+                        sh '''
+                            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                            docker push ${DOCKER_HUB_USER}/${IMAGE_NAME}:latest
+                        '''
                     }
                 }
             }
@@ -53,9 +53,19 @@ pipeline {
             steps {
                 script {
                     echo "🚢 Deploying latest container..."
-                    sh "docker stop fitness-tracker-app || true"
-                    sh "docker rm fitness-tracker-app || true"
-                    sh "docker run -d -p 5052:5051 --name fitness-tracker-app ${DOCKERHUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}"
+                    sh '''
+                        docker stop ${IMAGE_NAME} || true
+                        docker rm ${IMAGE_NAME} || true
+
+                        PORT=5052
+                        if lsof -Pi :$PORT -sTCP:LISTEN -t >/dev/null ; then
+                            echo "⚠️ Port $PORT already in use. Switching to port 5055..."
+                            PORT=5055
+                        fi
+
+                        docker run -d -p $PORT:5051 --name ${IMAGE_NAME} ${DOCKER_HUB_USER}/${IMAGE_NAME}:latest
+                        echo "✅ App deployed successfully on port $PORT"
+                    '''
                 }
             }
         }
@@ -63,7 +73,7 @@ pipeline {
 
     post {
         success {
-            echo "✅ Deployment successful!"
+            echo "🎉 Pipeline executed successfully! Fitness Tracker app is up and running."
         }
         failure {
             echo "❌ Deployment failed. Please check the Jenkins logs for errors."
