@@ -1,103 +1,23 @@
-pipeline {
-    agent any
+stage('Deploy') {
+    steps {
+        script {
+            echo "🚢 Deploying latest container..."
+            sh '''
+            docker stop fitness-tracker-app || true
+            docker rm fitness-tracker-app || true
 
-    environment {
-        DOCKERHUB_CREDENTIALS = credentials('dockerhub-token')
-        DOCKER_USER = 'siddhartha9'
-        IMAGE_NAME = 'fitness-tracker-app'
-        BASE_PORT = 5052
-    }
+            for PORT in $(seq 5052 5100); do
+                if ! lsof -Pi :$PORT -sTCP:LISTEN -t >/dev/null; then
+                    echo "✅ Using available port: $PORT"
+                    docker run -d -p $PORT:5051 --name fitness-tracker-app siddhartha9/fitness-tracker-app:latest
+                    echo "🌐 App running on http://localhost:$PORT"
+                    exit 0
+                fi
+            done
 
-    stages {
-
-        stage('Checkout') {
-            steps {
-                echo "📦 Checking out code from GitHub..."
-                git branch: 'main', url: 'https://github.com/siddharth-thatikanti/fitness-tracker.git'
-            }
-        }
-
-        stage('Build Docker Image') {
-            steps {
-                script {
-                    echo "🚀 Building Docker image..."
-                    sh "docker build -t ${DOCKER_USER}/${IMAGE_NAME}:latest ."
-                }
-            }
-        }
-
-        stage('Test Container') {
-            steps {
-                script {
-                    echo "🧪 Running test container on a random port..."
-                    sh '''
-                    docker run --rm -d -p 6146:5051 --name test_container ${DOCKER_USER}/${IMAGE_NAME}:latest
-                    sleep 5
-                    docker stop test_container
-                    '''
-                }
-            }
-        }
-
-        stage('Push to Docker Hub') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-token', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    script {
-                        echo "📤 Pushing image to Docker Hub..."
-                        sh '''
-                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                        docker push ${DOCKER_USER}/${IMAGE_NAME}:latest
-                        '''
-                    }
-                }
-            }
-        }
-
-        stage('Deploy') {
-            steps {
-                script {
-                    echo "🚢 Deploying latest container..."
-
-                    // Stop and remove any existing container
-                    sh '''
-                    docker stop ${IMAGE_NAME} || true
-                    docker rm ${IMAGE_NAME} || true
-                    '''
-
-                    // Find a free port dynamically (escape $ for bash)
-                    def FREE_PORT = sh(
-                        script: '''
-                        for p in $(seq 5052 5100); do
-                            if ! lsof -Pi :$p -sTCP:LISTEN -t >/dev/null; then
-                                echo $p
-                                break
-                            fi
-                        done
-                        ''',
-                        returnStdout: true
-                    ).trim()
-
-                    if (FREE_PORT == "") {
-                        error("❌ No free port found between 5052 and 5100!")
-                    }
-
-                    echo "✅ Using available port: ${FREE_PORT}"
-
-                    // Run the new container
-                    sh "docker run -d -p ${FREE_PORT}:5051 --name ${IMAGE_NAME} ${DOCKER_USER}/${IMAGE_NAME}:latest"
-
-                    echo "🌐 Application deployed successfully at: http://<YOUR-SERVER-IP>:${FREE_PORT}"
-                }
-            }
-        }
-    }
-
-    post {
-        success {
-            echo "✅ Pipeline completed successfully!"
-        }
-        failure {
-            echo "❌ Pipeline failed. Please check Jenkins logs."
+            echo "❌ No available ports found between 5052 and 5100!"
+            exit 1
+            '''
         }
     }
 }
