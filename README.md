@@ -18,4 +18,4 @@ A simple Flask application demonstrating an automated CI/CD pipeline using Jenki
 ## 🧱 Run Locally
 ```bash
 docker build -t python-cicd-app .
-docker run -d -p 5000:5000 python-cicd-app
+docker run -d -p 5051:5051 python-cicd-app
