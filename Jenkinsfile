@@ -2,8 +2,10 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_USER = 'your_dockerhub_username'  // replace this
-        IMAGE_NAME = 'fitness-tracker-app'
+        // Change this to your actual Docker Hub username
+        DOCKERHUB_USER = "siddhartha9"
+        IMAGE_NAME = "fitness-tracker-app"
+        IMAGE_TAG = "latest"
     }
 
     stages {
@@ -16,46 +18,55 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    sh 'docker build -t $DOCKERHUB_USER/$IMAGE_NAME:latest .'
+                    echo "🚀 Building Docker image..."
+                    sh "docker build -t ${DOCKERHUB_USER}/${IMAGE_NAME}:${IMAGE_TAG} ."
                 }
             }
         }
 
-        stage('Test') {
+        stage('Test Container') {
             steps {
-                echo 'Running basic container test...'
-                sh 'docker run --rm -d -p 5052:5051 $DOCKERHUB_USER/$IMAGE_NAME:latest'
-                sh 'sleep 5'
-                sh 'curl -f http://localhost:5051 || echo "Container test failed"'
+                script {
+                    echo "🧪 Running test container on a random port..."
+                    // Use a random port to avoid 'port already allocated' errors
+                    def testPort = 6000 + new Random().nextInt(999)
+                    sh "docker run --rm -d -p ${testPort}:5051 --name test_container ${DOCKERHUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}"
+                    sh "sleep 5"
+                    sh "docker stop test_container || true"
+                }
             }
         }
 
         stage('Push to Docker Hub') {
             steps {
-                withCredentials([string(credentialsId: 'dockerhub-token', variable: 'DOCKERHUB_PASS')]) {
-                    sh 'echo $DOCKERHUB_PASS | docker login -u $DOCKERHUB_USER --password-stdin'
-                    sh 'docker push $DOCKERHUB_USER/$IMAGE_NAME:latest'
+                withCredentials([usernamePassword(credentialsId: 'dokcerhub-token', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    script {
+                        echo "📦 Logging into Docker Hub..."
+                        sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin"
+                        sh "docker push ${DOCKERHUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}"
+                    }
                 }
             }
         }
 
         stage('Deploy') {
             steps {
-                echo 'Deploying container...'
-                sh 'docker stop fitness-tracker || true'
-                sh 'docker rm fitness-tracker || true'
-                sh 'docker run -d --name fitness-tracker -p 5051:5051 $DOCKERHUB_USER/$IMAGE_NAME:latest'
+                script {
+                    echo "🚢 Deploying latest container..."
+                    sh "docker stop fitness-tracker-app || true"
+                    sh "docker rm fitness-tracker-app || true"
+                    sh "docker run -d -p 5052:5051 --name fitness-tracker-app ${DOCKERHUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}"
+                }
             }
         }
     }
 
     post {
         success {
-            echo '✅ Deployment Successful! Application running on port 5051.'
+            echo "✅ Deployment successful!"
         }
         failure {
-            echo '❌ Deployment failed. Check logs.'
+            echo "❌ Deployment failed. Please check the Jenkins logs for errors."
         }
     }
 }
-
