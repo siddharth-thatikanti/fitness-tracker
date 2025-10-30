@@ -61,10 +61,17 @@ pipeline {
                     docker rm ${IMAGE_NAME} || true
                     '''
 
-                    // Find a free port dynamically (start from 5052)
+                    // Find a free port dynamically (escaped $ to avoid Groovy parsing)
                     def BASE_PORT = 5052
                     def FREE_PORT = sh(
-                        script: "for p in $(seq ${BASE_PORT} 5100); do ! lsof -Pi :$p -sTCP:LISTEN -t >/dev/null && echo $p && break; done",
+                        script: '''
+                        for p in $(seq 5052 5100); do
+                            if ! lsof -Pi :$p -sTCP:LISTEN -t >/dev/null; then
+                                echo $p
+                                break
+                            fi
+                        done
+                        ''',
                         returnStdout: true
                     ).trim()
 
