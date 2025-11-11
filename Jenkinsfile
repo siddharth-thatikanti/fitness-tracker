@@ -51,22 +51,26 @@ pipeline {
     /* -------------------------------------------------------
        Stage 4: Deploy to Kubernetes
     ---------------------------------------------------------*/
-    stage('Deploy to Kubernetes') {
-      steps {
-        script {
-          echo '☸️ Deploying Fitness Tracker to Kubernetes...'
-          // Write the kubeconfig credentials to a file
-          writeFile file: 'kubeconfig', text: "${KUBECONFIG_CREDENTIALS}"
-          withEnv(["KUBECONFIG=${WORKSPACE}/kubeconfig"]) {
-            sh '''
-              kubectl set image deployment/fitness-tracker-deployment fitness-tracker=$DOCKER_IMAGE:latest --record || \
-              kubectl apply -f k8s-deployment.yaml
-              kubectl rollout status deployment/fitness-tracker-deployment
-            '''
-          }
-        }
+stage('Deploy to Kubernetes') {
+  steps {
+    script {
+      echo '☸️ Deploying Fitness Tracker to Kubernetes...'
+      
+      // Correct way to use a secret file
+      withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG_FILE')]) {
+        sh '''
+          export KUBECONFIG=$KUBECONFIG_FILE
+          
+          # Try to update image, or apply if not exists
+          kubectl set image deployment/fitness-tracker-deployment fitness-tracker=$DOCKER_IMAGE:latest || \
+          kubectl apply -f k8s-deployment.yaml
+          
+          kubectl rollout status deployment/fitness-tracker-deployment
+        '''
       }
     }
+  }
+}
 
     /* -------------------------------------------------------
        Stage 5: Verify Deployment
@@ -94,3 +98,4 @@ pipeline {
     }
   }
 }
+
