@@ -2,12 +2,18 @@ pipeline {
   agent any
 
   environment {
-    DOCKERHUB_CREDENTIALS = credentials('jenkinss')  
+    // Jenkins credentials IDs
+    DOCKERHUB_CREDENTIALS = credentials('jenkinss')  // DockerHub credentials ID in Jenkins
+    KUBECONFIG_CREDENTIALS = credentials('kubeconfig') // Kubernetes config credential
     DOCKER_IMAGE = "siddhartha9/fitness-tracker"
-    KUBECONFIG_CREDENTIALS = credentials('kubeconfig') 
   }
 
-  stage('Checkout Code') {
+  stages {
+
+    /* -------------------------------------------------------
+       Stage 1: Checkout source code from GitHub (main branch)
+    ---------------------------------------------------------*/
+    stage('Checkout Code') {
       steps {
         echo '🔁 Checking out Fitness Tracker code from GitHub...'
         git branch: 'main',
@@ -15,29 +21,41 @@ pipeline {
       }
     }
 
+    /* -------------------------------------------------------
+       Stage 2: Build Docker Image
+    ---------------------------------------------------------*/
     stage('Build Docker Image') {
       steps {
         script {
+          echo '🐳 Building Docker image...'
           sh 'docker build -t $DOCKER_IMAGE:latest .'
         }
       }
     }
 
+    /* -------------------------------------------------------
+       Stage 3: Push Docker Image to DockerHub
+    ---------------------------------------------------------*/
     stage('Push to DockerHub') {
       steps {
         script {
-          // Secure Docker login using Jenkins credentials
+          echo '📦 Pushing image to DockerHub...'
           sh """
             echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin
-            docker push $DOCKER_IMAGE:latest 
+            docker push $DOCKER_IMAGE:latest
           """
         }
       }
     }
 
+    /* -------------------------------------------------------
+       Stage 4: Deploy to Kubernetes
+    ---------------------------------------------------------*/
     stage('Deploy to Kubernetes') {
       steps {
         script {
+          echo '☸️ Deploying Fitness Tracker to Kubernetes...'
+          // Write the kubeconfig credentials to a file
           writeFile file: 'kubeconfig', text: "${KUBECONFIG_CREDENTIALS}"
           withEnv(["KUBECONFIG=${WORKSPACE}/kubeconfig"]) {
             sh '''
@@ -50,8 +68,12 @@ pipeline {
       }
     }
 
+    /* -------------------------------------------------------
+       Stage 5: Verify Deployment
+    ---------------------------------------------------------*/
     stage('Verify Deployment') {
       steps {
+        echo '🔍 Verifying deployment...'
         sh '''
           kubectl get pods -l app=fitness-tracker
           kubectl get svc fitness-tracker-service
@@ -60,13 +82,15 @@ pipeline {
     }
   }
 
+  /* -------------------------------------------------------
+     Post Actions: Notifications
+  ---------------------------------------------------------*/
   post {
     success {
-      echo "? Deployment successful!"
+      echo "✅ Deployment successful! Your Fitness Tracker app is live."
     }
     failure {
-      echo "? Deployment failed. Check logs."
+      echo "❌ Deployment failed. Please check Jenkins logs for details."
     }
   }
 }
-
