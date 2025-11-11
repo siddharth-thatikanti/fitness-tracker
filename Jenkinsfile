@@ -7,10 +7,11 @@ pipeline {
     KUBECONFIG_CREDENTIALS = credentials('kubeconfig') 
   }
 
-  stages {
-    stage('Checkout Code') {
+  stage('Checkout Code') {
       steps {
-        git 'https://github.com/siddharth-thatikanti/fitness-tracker.git'
+        echo '🔁 Checking out Fitness Tracker code from GitHub...'
+        git branch: 'main',
+            url: 'https://github.com/siddharth-thatikanti/fitness-tracker.git'
       }
     }
 
@@ -68,3 +69,4 @@ pipeline {
     }
   }
 }
+
