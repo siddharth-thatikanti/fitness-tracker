@@ -36,5 +36,5 @@ It is designed for high availability and scalability using **Docker** and **Kube
 
 ---
 
-## 📁 Project Structure
+
 
