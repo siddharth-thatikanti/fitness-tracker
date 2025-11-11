@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FoodFit - Smart Nutrition and Fitness Companion</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <style id="app-style">
+    body {
+      font-family: 'Nunito', sans-serif;
+      background-color: #f7fafc;
+      color: #4a5568;
+    }
+    
+    .tab-content {
+      display: none;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    .navbar-brand {
+      font-weight: 700;
+      font-size: 1.5rem;
+    }
+    
+    .card {
+      border-radius: 1rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      transition: transform 0.3s ease;
+    }
+    
+    .card:hover {
+      transform: translateY(-5px);
+    }
+    
+    .progress-ring {
+      transform: rotate(-90deg);
+    }
+    
+    .fab-button {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      height: 60px;
+      width: 60px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #43a047, #2e7d32);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      z-index: 100;
+      transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+    
+    .fab-button:hover {
+      transform: scale(1.1);
+      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.25);
+    }
+    
+    .skeleton-loader {
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+      background-size: 200% 100%;
+      animation: loading 1.5s infinite;
+    }
+    
+    @keyframes loading {
+      0% {
+        background-position: -200% 0;
+      }
+      100% {
+        background-position: 200% 0;
+      }
+    }
+    
+    .macro-pill {
+      border-radius: 999px;
+      padding: 0.25rem 0.75rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      margin-right: 0.5rem;
+    }
+    
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    
+    .modal.active {
+      display: flex;
+    }
+    
+    .meal-item {
+      transition: all 0.2s ease;
+    }
+    
+    .meal-item:hover {
+      background-color: #f0f9ff;
+    }
+    
+    .workout-logger {
+      border-radius: 1rem;
+      background: linear-gradient(145deg, #ffffff, #f0f9ff);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+    
+    .settings-panel {
+      position: fixed;
+      top: 0;
+      right: -100%;
+      width: 100%;
+      max-width: 400px;
+      height: 100%;
+      background: white;
+      z-index: 1001;
+      transition: right 0.3s ease;
+      box-shadow: -4px 0 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    .settings-panel.active {
+      right: 0;
+    }
+  </style>
+</head>
+<body class="min-h-screen">
+  <!-- Navbar -->
+  <nav class="bg-white shadow-sm sticky top-0 z-50">
+    <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+      <div class="flex items-center">
+        <span class="navbar-brand text-green-600">
+          <i class="fas fa-apple-alt mr-2"></i>FoodFit
+        </span>
+      </div>
+      <div class="flex items-center">
+        <button id="settings-btn" class="p-2 rounded-full hover:bg-gray-100" aria-label="Settings">
+          <i class="fas fa-cog text-gray-600 text-xl"></i>
+        </button>
+        <button id="help-btn" class="p-2 ml-2 rounded-full hover:bg-gray-100" aria-label="Help">
+          <i class="fas fa-question-circle text-gray-600 text-xl"></i>
+        </button>
+      </div>
+    </div>
+  </nav>
+  
+  <!-- Main Content -->
+  <div class="container mx-auto px-4 py-6">
+    <!-- Tabs -->
+    <div class="flex border-b mb-6">
+      <button id="nutrition-tab" class="tab-button px-6 py-3 font-semibold text-green-600 border-b-2 border-green-500 focus:outline-none">
+        <i class="fas fa-utensils mr-2"></i>Nutrition
+      </button>
+      <button id="activity-tab" class="tab-button px-6 py-3 font-semibold text-gray-500 hover:text-green-600 focus:outline-none">
+        <i class="fas fa-running mr-2"></i>Activity
+      </button>
+    </div>
+    
+    <!-- Nutrition Tab Content -->
+    <div id="nutrition-content" class="tab-content active">
+      <!-- Search Form -->
+      <div class="card bg-white p-6 mb-6">
+        <h2 class="text-xl font-bold mb-4">Add Food</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="md:col-span-2">
+            <div class="relative">
+              <input type="text" id="food-search" placeholder="Search for a food item..." 
+                     class="w-full p-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-400 focus:border-green-400">
+              <i class="fas fa-search absolute left-3 top-3.5 text-gray-400"></i>
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button id="search-food-btn" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-lg transition">
+              <i class="fas fa-plus mr-2"></i>Add
+            </button>
+            <button id="upload-photo-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg transition">
+              <i class="fas fa-camera"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Daily Summary -->
+      <div class="card bg-white p-6 mb-6">
+        <h2 class="text-xl font-bold mb-4">Today's Summary</h2>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <!-- Calories -->
+          <div class="bg-green-50 rounded-xl p-4">
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-sm text-gray-600">Calories</span>
+              <span class="text-sm font-semibold">1,245 / 2,000</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2.5">
+              <div class="bg-green-500 h-2.5 rounded-full" style="width: 62%"></div>
+            </div>
+          </div>
+          
+          <!-- Protein -->
+          <div class="bg-red-50 rounded-xl p-4">
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-sm text-gray-600">Protein</span>
+              <span class="text-sm font-semibold">56g / 140g</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2.5">
+              <div class="bg-red-500 h-2.5 rounded-full" style="width: 40%"></div>
+            </div>
+          </div>
+          
+          <!-- Carbs -->
+          <div class="bg-blue-50 rounded-xl p-4">
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-sm text-gray-600">Carbs</span>
+              <span class="text-sm font-semibold">165g / 250g</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2.5">
+              <div class="bg-blue-500 h-2.5 rounded-full" style="width: 66%"></div>
+            </div>
+          </div>
+          
+          <!-- Fat -->
+          <div class="bg-yellow-50 rounded-xl p-4">
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-sm text-gray-600">Fat</span>
+              <span class="text-sm font-semibold">42g / 65g</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2.5">
+              <div class="bg-yellow-500 h-2.5 rounded-full" style="width: 64%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Meal History -->
+      <div class="card bg-white p-6">
+        <h2 class="text-xl font-bold mb-4">Today's Meals</h2>
+        <div class="divide-y">
+          <!-- Breakfast -->
+          <div class="meal-item py-4">
+            <div class="flex justify-between items-center mb-2">
+              <h3 class="font-semibold text-lg">Breakfast</h3>
+              <span class="text-sm text-gray-500">8:30 AM</span>
+            </div>
+            <div class="flex flex-wrap gap-2 mb-2">
+              <span class="macro-pill bg-green-100 text-green-800">420 cal</span>
+              <span class="macro-pill bg-red-100 text-red-800">22g protein</span>
+              <span class="macro-pill bg-blue-100 text-blue-800">48g carbs</span>
+              <span class="macro-pill bg-yellow-100 text-yellow-800">18g fat</span>
+            </div>
+            <div class="flex items-center text-gray-700">
+              <p>Greek yogurt with honey, banana and granola</p>
+              <div class="ml-auto flex">
+                <button class="p-1 text-blue-500 hover:text-blue-700">
+                  <i class="fas fa-edit"></i>
+                </button>
+                <button class="p-1 text-red-500 hover:text-red-700 ml-2">
+                  <i class="fas fa-trash-alt"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Lunch -->
+          <div class="meal-item py-4">
+            <div class="flex justify-between items-center mb-2">
+              <h3 class="font-semibold text-lg">Lunch</h3>
+              <span class="text-sm text-gray-500">12:45 PM</span>
+            </div>
+            <div class="flex flex-wrap gap-2 mb-2">
+              <span class="macro-pill bg-green-100 text-green-800">580 cal</span>
+              <span class="macro-pill bg-red-100 text-red-800">34g protein</span>
+              <span class="macro-pill bg-blue-100 text-blue-800">62g carbs</span>
+              <span class="macro-pill bg-yellow-100 text-yellow-800">24g fat</span>
+            </div>
+            <div class="flex items-center text-gray-700">
+              <p>Grilled chicken salad with quinoa and avocado</p>
+              <div class="ml-auto flex">
+                <button class="p-1 text-blue-500 hover:text-blue-700">
+                  <i class="fas fa-edit"></i>
+                </button>
+                <button class="p-1 text-red-500 hover:text-red-700 ml-2">
+                  <i class="fas fa-trash-alt"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Snack -->
+          <div class="meal-item py-4">
+            <div class="flex justify-between items-center mb-2">
+              <h3 class="font-semibold text-lg">Snack</h3>
+              <span class="text-sm text-gray-500">3:30 PM</span>
+            </div>
+            <div class="flex flex-wrap gap-2 mb-2">
+              <span class="macro-pill bg-green-100 text-green-800">245 cal</span>
+              <span class="macro-pill bg-red-100 text-red-800">6g protein</span>
+              <span class="macro-pill bg-blue-100 text-blue-800">35g carbs</span>
+              <span class="macro-pill bg-yellow-100 text-yellow-800">12g fat</span>
+            </div>
+            <div class="flex items-center text-gray-700">
+              <p>Apple and almond butter</p>
+              <div class="ml-auto flex">
+                <button class="p-1 text-blue-500 hover:text-blue-700">
+                  <i class="fas fa-edit"></i>
+                </button>
+                <button class="p-1 text-red-500 hover:text-red-700 ml-2">
+                  <i class="fas fa-trash-alt"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Meal Recommendation -->
+          <div class="py-4">
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start">
+              <i class="fas fa-lightbulb text-yellow-500 text-xl mr-3 mt-1"></i>
+              <div>
+                <h4 class="font-semibold text-blue-800">Dinner Recommendation</h4>
+                <p class="text-sm text-blue-600 mt-1">
+                  Based on your goals, we recommend a dinner with around 550 calories, 35g protein, 
+                  50g carbs and 15g fat. Try our grilled salmon with sweet potato and vegetables recipe!
+                </p>
+                <button class="mt-2 text-blue-700 hover:text-blue-900 font-semibold text-sm">
+                  <i class="fas fa-utensils mr-1"></i> See Recipe
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Activity Tab Content -->
+    <div id="activity-content" class="tab-content">
+      <!-- Workout Logger -->
+      <div class="workout-logger bg-white p-6 mb-6">
+        <h2 class="text-xl font-bold mb-4">Log Workout</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <div class="mb-4">
+              <label for="activity-type" class="block text-sm font-medium text-gray-700 mb-1">Activity Type</label>
+              <select id="activity-type" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400">
+                <option value="">Select activity...</option>
+                <option value="running">Running</option>
+                <option value="cycling">Cycling</option>
+                <option value="swimming">Swimming</option>
+                <option value="weightlifting">Weight Lifting</option>
+                <option value="yoga">Yoga</option>
+                <option value="hiit">HIIT</option>
+                <option value="walking">Walking</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            
+            <div class="mb-4">
+              <label for="duration" class="block text-sm font-medium text-gray-700 mb-1">
+                Duration: <span id="duration-value">30</span> minutes
+              </label>
+              <input type="range" id="duration" min="5" max="180" step="5" value="30" 
+                     class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+            </div>
+            
+            <div class="mb-4">
+              <label for="intensity" class="block text-sm font-medium text-gray-700 mb-1">
+                Intensity
+              </label>
+              <div class="flex">
+                <button class="flex-1 py-2 border border-gray-300 rounded-l-lg hover:bg-gray-100" data-intensity="low">
+                  Light
+                </button>
+                <button class="flex-1 py-2 border-t border-b border-gray-300 bg-blue-100" data-intensity="medium">
+                  Moderate
+                </button>
+                <button class="flex-1 py-2 border border-gray-300 rounded-r-lg hover:bg-gray-100" data-intensity="high">
+                  Intense
+                </button>
+              </div>
+            </div>
+            
+            <button id="log-activity-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg transition mt-2">
+              <i class="fas fa-plus mr-2"></i>Log Activity
+            </button>
+          </div>
+          
+          <div>
+            <div class="bg-blue-50 rounded-xl p-6 h-full flex flex-col justify-between">
+              <div>
+                <h3 class="font-semibold text-lg mb-3">Activity Stats</h3>
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                  <div class="bg-white rounded-lg p-3 shadow-sm">
+                    <p class="text-sm text-gray-600">Calories Burned Today</p>
+                    <p class="text-xl font-bold text-blue-600">380</p>
+                  </div>
+                  <div class="bg-white rounded-lg p-3 shadow-sm">
+                    <p class="text-sm text-gray-600">Weekly Average</p>
+                    <p class="text-xl font-bold text-blue-600">425</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <button class="w-full flex items-center justify-center bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-4 rounded-lg transition">
+                  <i class="fab fa-fitbit mr-2 text-blue-500"></i>
+                  Sync with Fitbit
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Activity History -->
+      <div class="card bg-white p-6">
+        <h2 class="text-xl font-bold mb-4">Activity Summary</h2>
+        
+        <!-- Weekly Chart -->
+        <div class="mb-6">
+          <canvas id="weeklyChart" height="250"></canvas>
+        </div>
+        
+        <!-- Recent Activities -->
+        <h3 class="font-semibold text-lg mb-3">Recent Activities</h3>
+        <div class="divide-y">
+          <div class="py-3 flex items-center justify-between">
+            <div>
+              <div class="flex items-center">
+                <span class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                  <i class="fas fa-running text-blue-500"></i>
+                </span>
+                <div>
+                  <h4 class="font-semibold">Morning Run</h4>
+                  <p class="text-sm text-gray-600">Today, 7:30 AM</p>
+                </div>
+              </div>
+            </div>
+            <div class="text-right">
+              <p class="font-semibold">240 cal</p>
+              <p class="text-sm text-gray-600">30 minutes</p>
+            </div>
+          </div>
+          
+          <div class="py-3 flex items-center justify-between">
+            <div>
+              <div class="flex items-center">
+                <span class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center mr-3">
+                  <i class="fas fa-dumbbell text-purple-500"></i>
+                </span>
+                <div>
+                  <h4 class="font-semibold">Weight Training</h4>
+                  <p class="text-sm text-gray-600">Yesterday, 6:15 PM</p>
+                </div>
+              </div>
+            </div>
+            <div class="text-right">
+              <p class="font-semibold">180 cal</p>
+              <p class="text-sm text-gray-600">45 minutes</p>
+            </div>
+          </div>
+          
+          <div class="py-3 flex items-center justify-between">
+            <div>
+              <div class="flex items-center">
+                <span class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center mr-3">
+                  <i class="fas fa-biking text-green-500"></i>
+                </span>
+                <div>
+                  <h4 class="font-semibold">Cycling</h4>
+                  <p class="text-sm text-gray-600">2 days ago, 5:30 PM</p>
+                </div>
+              </div>
+            </div>
+            <div class="text-right">
+              <p class="font-semibold">350 cal</p>
+              <p class="text-sm text-gray-600">50 minutes</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- FAB Button -->
+  <button class="fab-button" id="fab-button">
+    <i class="fas fa-plus text-2xl"></i>
+  </button>
+  
+  <!-- Quick Add Modal -->
+  <div id="quick-add-modal" class="modal">
+    <div class="bg-white rounded-xl p-6 w-full max-w-md">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-bold">Quick Add</h2>
+        <button id="close-modal" class="text-gray-500 hover:text-gray-700">
+          <i class="fas fa-times text-xl"></i>
+        </button>
+      </div>
+      
+      <div class="mb-4">
+        <div class="flex mb-4">
+          <button data-type="food" class="flex-1 py-2 border-b-2 border-green-500 text-green-600 font-semibold">
+            <i class="fas fa-utensils mr-2"></i>Food
+          </button>
+          <button data-type="activity" class="flex-1 py-2 border-b border-gray-300 text-gray-500 hover:text-green-600 font-semibold">
+            <i class="fas fa-running mr-2"></i>Activity
+          </button>
+        </div>
+        
+        <div id="quick-food-form">
+          <div class="mb-4">
+            <label for="quick-food-name" class="block text-sm font-medium text-gray-700 mb-1">Food Name</label>
+            <input type="text" id="quick-food-name" placeholder="e.g. Apple, Chicken Sandwich" 
+                   class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-400 focus:border-green-400">
+          </div>
+          
+          <div class="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <label for="quick-calories" class="block text-sm font-medium text-gray-700 mb-1">Calories</label>
+              <input type="number" id="quick-calories" placeholder="e.g. 250" 
+                     class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-400 focus:border-green-400">
+            </div>
+            <div>
+              <label for="quick-meal-type" class="block text-sm font-medium text-gray-700 mb-1">Meal Type</label>
+              <select id="quick-meal-type" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-400 focus:border-green-400">
+                <option value="breakfast">Breakfast</option>
+                <option value="lunch">Lunch</option>
+                <option value="dinner">Dinner</option>
+                <option value="snack">Snack</option>
+              </select>
+            </div>
+          </div>
+          
+          <button id="quick-add-food-btn" class="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-lg transition">
+            Add Food
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Settings Panel -->
+  <div id="settings-panel" class="settings-panel">
+    <div class="p-6">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-xl font-bold">Settings</h2>
+        <button id="close-settings" class="text-gray-500 hover:text-gray-700">
+          <i class="fas fa-times text-xl"></i>
+        </button>
+      </div>
+      
+      <div class="divide-y">
+        <!-- Goal Settings -->
+        <div class="py-4">
+          <h3 class="font-semibold text-lg mb-3">Goal Settings</h3>
+          
+          <div class="mb-4">
+            <label for="calorie-target" class="block text-sm font-medium text-gray-700 mb-1">Daily Calorie Target</label>
+            <input type="number" id="calorie-target" value="2000" 
+                   class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-400 focus:border-green-400">
+          </div>
+          
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Goal Type</label>
+            <div class="flex">
+              <button class="flex-1 py-2 border border-gray-300 rounded-l-lg bg-green-100" data-goal="lose">
+                Lose Weight
+              </button>
+              <button class="flex-1 py-2 border-t border-b border-gray-300 hover:bg-green-100" data-goal="maintain">
+                Maintain
+              </button>
+              <button class="flex-1 py-2 border border-gray-300 rounded-r-lg hover:bg-green-100" data-goal="gain">
+                Gain Muscle
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Dietary Preferences -->
+        <div class="py-4">
+          <h3 class="font-semibold text-lg mb-3">Dietary Preferences</h3>
+          
+          <div class="mb-4">
+            <label for="diet-type" class="block text-sm font-medium text-gray-700 mb-1">Diet Type</label>
+            <select id="diet-type" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-400 focus:border-green-400">
+              <option value="balanced">Balanced</option>
+              <option value="vegetarian">Vegetarian</option>
+              <option value="vegan">Vegan</option>
+              <option value="keto">Keto</option>
+              <option value="paleo">Paleo</option>
+              <option value="mediterranean">Mediterranean</option>
+            </select>
+          </div>
+          
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Allergies/Restrictions</label>
+            <div class="flex flex-wrap gap-2">
+              <div class="flex items-center">
+                <input type="checkbox" id="allergy-gluten" class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded">
+                <label for="allergy-gluten" class="ml-2 text-sm text-gray-700">Gluten</label>
+              </div>
+              <div class="flex items-center">
+                <input type="checkbox" id="allergy-dairy" class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded">
+                <label for="allergy-dairy" class="ml-2 text-sm text-gray-700">Dairy</label>
+              </div>
+              <div class="flex items-center">
+                <input type="checkbox" id="allergy-nuts" class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded">
+                <label for="allergy-nuts" class="ml-2 text-sm text-gray-700">Nuts</label>
+              </div>
+              <div class="flex items-center">
+                <input type="checkbox" id="allergy-shellfish" class="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded">
+                <label for="allergy-shellfish" class="ml-2 text-sm text-gray-700">Shellfish</label>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Unit Preferences -->
+        <div class="py-4">
+          <h3 class="font-semibold text-lg mb-3">Unit Preferences</h3>
+          
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Weight Units</label>
+            <div class="flex">
+              <button class="flex-1 py-2 border border-gray-300 rounded-l-lg bg-green-100" data-unit="metric">
+                Kilograms (kg)
+              </button>
+              <button class="flex-1 py-2 border-t border-b border-r border-gray-300 rounded-r-lg hover:bg-green-100" data-unit="imperial">
+                Pounds (lbs)
+              </button>
+            </div>
+          </div>
+          
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Height Units</label>
+            <div class="flex">
+              <button class="flex-1 py-2 border border-gray-300 rounded-l-lg bg-green-100" data-unit="metric">
+                Centimeters (cm)
+              </button>
+              <button class="flex-1 py-2 border-t border-b border-r border-gray-300 rounded-r-lg hover:bg-green-100" data-unit="imperial">
+                Feet/Inches
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <button id="save-settings" class="w-full mt-6 bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-lg transition">
+        Save Settings
+      </button>
+    </div>
+  </div>
+  
+  <!-- Help Modal -->
+  <div id="help-modal" class="modal">
+    <div class="bg-white rounded-xl p-6 w-full max-w-lg">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-bold">Help & Tips</h2>
+        <button id="close-help" class="text-gray-500 hover:text-gray-700">
+          <i class="fas fa-times text-xl"></i>
+        </button>
+      </div>
+      
+      <div class="mb-4">
+        <div class="bg-blue-50 rounded-lg p-4 mb-4">
+          <h3 class="font-semibold text-blue-800">Getting Started</h3>
+          <p class="text-sm text-blue-600 mt-1">
+            Welcome to FoodFit! To get the most out of the app, start by setting your goals and dietary preferences in the Settings panel.
+          </p>
+        </div>
+        
+        <div class="mb-4">
+          <h3 class="font-semibold mb-2">Quick Tips:</h3>
+          <ul class="text-sm text-gray-700 space-y-2 list-disc pl-5">
+            <li>Use the quick add button (+ icon) to quickly log meals or activities</li>
+            <li>Track your progress in the Activity tab with visual charts</li>
+            <li>Follow meal recommendations based on your remaining daily nutrients</li>
+            <li>Sync with fitness trackers for automatic activity logging</li>
+          </ul>
+        </div>
+        
+        <div class="border-t pt-4 mt-4">
+          <p class="text-sm text-gray-500">
+            Need more help? Contact us at <a href="javascript:void(0)" class="text-blue-500 hover:text-blue-700">support@foodfit.com</a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script id="app-script">
+    // DOM Elements
+    const nutritionTab = document.getElementById('nutrition-tab');
+    const activityTab = document.getElementById('activity-tab');
+    const nutritionContent = document.getElementById('nutrition-content');
+    const activityContent = document.getElementById('activity-content');
+    
+    const fabButton = document.getElementById('fab-button');
+    const quickAddModal = document.getElementById('quick-add-modal');
+    const closeModalBtn = document.getElementById('close-modal');
+    
+    const settingsBtn = document.getElementById('settings-btn');
+    const settingsPanel = document.getElementById('settings-panel');
+    const closeSettingsBtn = document.getElementById('close-settings');
+    const saveSettingsBtn = document.getElementById('save-settings');
+    
+    const helpBtn = document.getElementById('help-btn');
+    const helpModal = document.getElementById('help-modal');
+    const closeHelpBtn = document.getElementById('close-help');
+    
+    const durationSlider = document.getElementById('duration');
+    const durationValue = document.getElementById('duration-value');
+    
+    // Tab Switching
+    nutritionTab.addEventListener('click', () => {
+      nutritionTab.classList.add('text-green-600', 'border-b-2', 'border-green-500');
+      nutritionTab.classList.remove('text-gray-500');
+      
+      activityTab.classList.remove('text-green-600', 'border-b-2', 'border-green-500');
+      activityTab.classList.add('text-gray-500');
+      
+      nutritionContent.classList.add('active');
+      activityContent.classList.remove('active');
+    });
+    
+    activityTab.addEventListener('click', () => {
+      activityTab.classList.add('text-green-600', 'border-b-2', 'border-green-500');
+      activityTab.classList.remove('text-gray-500');
+      
+      nutritionTab.classList.remove('text-green-600', 'border-b-2', 'border-green-500');
+      nutritionTab.classList.add('text-gray-500');
+      
+      activityContent.classList.add('active');
+      nutritionContent.classList.remove('active');
+    });
+    
+    // FAB Button & Quick Add Modal
+    fabButton.addEventListener('click', () => {
+      quickAddModal.classList.add('active');
+    });
+    
+    closeModalBtn.addEventListener('click', () => {
+      quickAddModal.classList.remove('active');
+    });
+    
+    // Settings Panel
+    settingsBtn.addEventListener('click', () => {
+      settingsPanel.classList.add('active');
+    });
+    
+    closeSettingsBtn.addEventListener('click', () => {
+      settingsPanel.classList.remove('active');
+    });
+    
+    saveSettingsBtn.addEventListener('click', () => {
+      // In the real app, we would save settings to LocalStorage and/or API
+      settingsPanel.classList.remove('active');
+      // Show a success toast or notification
+      alert('Settings saved successfully!');
+    });
+    
+    // Help Modal
+    helpBtn.addEventListener('click', () => {
+      helpModal.classList.add('active');
+    });
+    
+    closeHelpBtn.addEventListener('click', () => {
+      helpModal.classList.remove('active');
+    });
+    
+    // Duration Slider
+    durationSlider.addEventListener('input', () => {
+      durationValue.textContent = durationSlider.value;
+    });
+    
+    // Close modals when clicking outside
+    window.addEventListener('click', (e) => {
+      if (e.target === quickAddModal) {
+        quickAddModal.classList.remove('active');
+      }
+      if (e.target === helpModal) {
+        helpModal.classList.remove('active');
+      }
+    });
+    
+    // Initialize Weekly Chart
+    const createWeeklyChart = () => {
+      const ctx = document.getElementById('weeklyChart').getContext('2d');
+      const weeklyChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+          datasets: [
+            {
+              label: 'Calories Consumed',
+              data: [1950, 2100, 1840, 1920, 2050, 2200, 1980],
+              backgroundColor: 'rgba(76, 175, 80, 0.6)',
+              borderColor: 'rgba(76, 175, 80, 1)',
+              borderWidth: 1
+            },
+            {
+              label: 'Calories Burned',
+              data: [300, 450, 200, 380, 250, 520, 350],
+              backgroundColor: 'rgba(33, 150, 243, 0.6)',
+              borderColor: 'rgba(33, 150, 243, 1)',
+              borderWidth: 1
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'Calories'
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              position: 'top',
+            },
+            title: {
+              display: true,
+              text: 'Weekly Calorie Balance'
+            }
+          }
+        }
+      });
+    };
+    
+    // Initialize LocalStorage (in a real app, we'd use this for data persistence)
+    const initLocalStorage = () => {
+      // Check if we have saved settings
+      if (!localStorage.getItem('foodfit_settings')) {
+        // Set default settings
+        const defaultSettings = {
+          calorieTarget: 2000,
+          goalType: 'lose',
+          dietType: 'balanced',
+          allergies: [],
+          weightUnit: 'metric',
+          heightUnit: 'metric'
+        };
+        localStorage.setItem('foodfit_settings', JSON.stringify(defaultSettings));
+      }
+      
+      // Check if we have meal history
+      if (!localStorage.getItem('foodfit_meals')) {
+        // Set some example meals (would be empty in real app)
+        localStorage.setItem('foodfit_meals', JSON.stringify([]));
+      }
+      
+      // Check if we have activity history
+      if (!localStorage.getItem('foodfit_activities')) {
+        // Set some example activities (would be empty in real app)
+        localStorage.setItem('foodfit_activities', JSON.stringify([]));
+      }
+    };
+    
+    // Simulated Food Search API
+    const searchFoodBtn = document.getElementById('search-food-btn');
+    const foodSearchInput = document.getElementById('food-search');
+    
+    searchFoodBtn.addEventListener('click', () => {
+      const searchTerm = foodSearchInput.value.trim();
+      if (searchTerm) {
+        // In a real app, this would call an API
+        // For now, just show an alert
+        alert(`This is a prototype. In the final version, this would search for "${searchTerm}" in our food database.`);
+        foodSearchInput.value = '';
+      }
+    });
+    
+    // Log Activity Button
+    const logActivityBtn = document.getElementById('log-activity-btn');
+    const activityTypeSelect = document.getElementById('activity-type');
+    
+    logActivityBtn.addEventListener('click', () => {
+      const activityType = activityTypeSelect.value;
+      const duration = durationSlider.value;
+      
+      if (activityType) {
+        // In a real app, this would save to LocalStorage and/or API
+        alert(`This is a prototype. In the final version, this would log a ${duration}-minute ${activityType} workout.`);
+        activityTypeSelect.value = '';
+        durationSlider.value = 30;
+        durationValue.textContent = '30';
+      } else {
+        alert('Please select an activity type');
+      }
+    });
+    
+    // Quick Add Food Button
+    const quickAddFoodBtn = document.getElementById('quick-add-food-btn');
+    const quickFoodNameInput = document.getElementById('quick-food-name');
+    const quickCaloriesInput = document.getElementById('quick-calories');
+    const quickMealTypeSelect = document.getElementById('quick-meal-type');
+    
+    quickAddFoodBtn.addEventListener('click', () => {
+      const foodName = quickFoodNameInput.value.trim();
+      const calories = quickCaloriesInput.value;
+      const mealType = quickMealTypeSelect.value;
+      
+      if (foodName && calories) {
+        // In a real app, this would save to LocalStorage and/or API
+        alert(`This is a prototype. In the final version, this would add ${foodName} (${calories} calories) to your ${mealType}.`);
+        quickAddModal.classList.remove('active');
+        quickFoodNameInput.value = '';
+        quickCaloriesInput.value = '';
+      } else {
+        alert('Please enter a food name and calories');
+      }
+    });
+    
+    // Initialize the app
+    window.addEventListener('DOMContentLoaded', () => {
+      createWeeklyChart();
+      initLocalStorage();
+    });
+  </script>
+</body>
+</html>
